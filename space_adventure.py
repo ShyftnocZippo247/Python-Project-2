@@ -66,31 +66,32 @@ class Player(pygame.sprite.Sprite):
         self.power_level = 1
         self.power_timer = 0
 
-    def update(self):
-        # Unhide if hidden
-        if self.hidden and pygame.time.get_ticks() - self.hide_timer > 1000:
-            self.hidden = False
-            self.rect.centerx = SCREEN_WIDTH // 2
-            self.rect.bottom = SCREEN_HEIGHT - 10
+def update(self):
+    # Unhide if hidden
+    if self.hidden and pygame.time.get_ticks() - self.hide_timer > 1000:
+        self.hidden = False
+        self.rect.centerx = SCREEN_WIDTH // 2
+        self.rect.bottom = SCREEN_HEIGHT - 10
 
-        # Power up timeout
-        if self.power_level > 1 and pygame.time.get_ticks() - self.power_timer > 5000:
-            self.power_level -= 1
-            self.power_timer = pygame.time.get_ticks()
+    # Power up timeout
+    if self.power_level > 1 and pygame.time.get_ticks() - self.power_timer > 5000:
+        self.power_level -= 1
+        self.power_timer = pygame.time.get_ticks()
 
-        # Movement
-        self.speed_x = 0
-        keystate = pygame.key.get_pressed()
-        if keystate[pygame.K_LEFT]:
-            self.speed_x = 8
-        if keystate[pygame.K_RIGHT]:
-            self.speed_x = -8
+    # Movement
+    self.speed_x = 0
+    keystate = pygame.key.get_pressed()
+    if keystate[pygame.K_LEFT]:
+        self.speed_x = -8  # Move left
+    if keystate[pygame.K_RIGHT]:
+        self.speed_x = 8  # Move right
 
-        self.rect.x += self.speed_x
-        if self.rect.right > SCREEN_WIDTH + 20:
-            self.rect.right = SCREEN_WIDTH + 20
-        if self.rect.left < -20:
-            self.rect.left = -20
+    self.rect.x += self.speed_x
+    # Ensure player does not move off screen
+    if self.rect.right > SCREEN_WIDTH:
+        self.rect.right = SCREEN_WIDTH
+    if self.rect.left < 0:
+        self.rect.left = 0
 
     def shoot(self):
         if not self.hidden:
@@ -111,6 +112,34 @@ class Player(pygame.sprite.Sprite):
     def powerup(self):
         self.power_level += 1
         self.power_timer = pygame.time.get_ticks()
+
+# Move the update method outside the Player class
+def update_player(player):
+    # Unhide if hidden
+    if player.hidden and pygame.time.get_ticks() - player.hide_timer > 1000:
+        player.hidden = False
+        player.rect.centerx = SCREEN_WIDTH // 2
+        player.rect.bottom = SCREEN_HEIGHT - 10
+
+    # Power up timeout
+    if player.power_level > 1 and pygame.time.get_ticks() - player.power_timer > 5000:
+        player.power_level -= 1
+        player.power_timer = pygame.time.get_ticks()
+
+    # Movement
+    player.speed_x = 0
+    keystate = pygame.key.get_pressed()
+    if keystate[pygame.K_LEFT]:
+        player.speed_x = -8  # Move left
+    if keystate[pygame.K_RIGHT]:
+        player.speed_x = 8  # Move right
+
+    player.rect.x += player.speed_x
+    # Ensure player does not move off screen
+    if player.rect.right > SCREEN_WIDTH:
+        player.rect.right = SCREEN_WIDTH
+    if player.rect.left < 0:
+        player.rect.left = 0
 
 # Enemy class
 class Enemy(pygame.sprite.Sprite):
@@ -264,7 +293,8 @@ def main_game():
                     player.shoot()
         
         # Update
-        all_sprites.update()
+            update_player(player)
+            all_sprites.update()  # You can still call this to update other sprites
         
         # Check bullet-enemy collisions
         hits = pygame.sprite.groupcollide(enemies, bullets, False, True)
@@ -273,6 +303,7 @@ def main_game():
             # Create explosion
             explosion = Explosion(hit.rect.center, 30)
             all_sprites.add(explosion)
+            hit.kill()  # Destroy the enemy after it gets hit
             # Spawn new enemy
             new_enemy = Enemy()
             all_sprites.add(new_enemy)
@@ -293,12 +324,13 @@ def main_game():
             all_sprites.add(new_enemy)
             enemies.add(new_enemy)
             if player.shield <= 0:
-                # player.lives -= 1
-                player.shield = 100
+                #player.shield = 100
+                player.lives -= 1
                 player.hide()
                 if player.lives == 0:
-                    game_over = True
-        
+                    game_over = True  # Stop the game when lives are 0
+
+
         # Check player-powerup collisions
         hits = pygame.sprite.spritecollide(player, powerups, True)
         for hit in hits:
@@ -310,14 +342,18 @@ def main_game():
                 player.powerup()
         
         if game_over:
-            pass
+            draw_text(screen, "GAME OVER", 48, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 3)
+            pygame.display.flip()
+            pygame.time.wait(2000)  # Wait 2 seconds before quitting
+            running = False  # Exit game loop
             
         # Draw / render
         screen.fill(BLACK)
         all_sprites.draw(screen)
         
         # Draw UI
-        draw_text(screen, str(score), 18, SCREEN_WIDTH / 2, 10)
+        # Draw power level text
+        draw_text(screen, f"Power: {player.power_level}", 18, SCREEN_WIDTH / 2, 30)
         draw_shield_bar(screen, 5, 5, player.shield)
         draw_lives(screen, SCREEN_WIDTH - 100, 5, player.lives, player_mini_img)
         
